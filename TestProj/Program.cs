@@ -2,111 +2,135 @@
 using System;
 using System.Text;
 
-class ConsoleApplication    
+public class ConsoleApplication
 {
-    bool hasAccount;
-    string? accountName;
-    int accountPin;
-    const string path = "data.dat";
-    public ConsoleApplication()
-    {
-        using (var newStream = File.Open(path, FileMode.Create))
-        {
-            BinaryReader reader = new BinaryReader(newStream, Encoding.UTF8, false);
-            while (reader.PeekChar() != -1)
-            {
-                accountName = reader.ReadString();
-                accountPin = reader.ReadInt32();
-   
-            }
-        }
-    }
+    static bool hasAccount;
+    static string? accountName;
+    static int accountPin;
+
+    static readonly string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData).ToString(), "Gammer0909", "data.dat");
+    static readonly int guessCount = 3;
 
     public static void Main()
     {
-        ConsoleApplication mainInstance = new ConsoleApplication();
-        
-            if (!File.Exists(path))
+        Account? accountData = GetAccountData(path);
+
+        if (accountData == null)
+        {
+            accountData = GetUserAccountInput();
+        }
+        else
+        {
+            bool trynaHack = SignIn(accountData);
+
+            if (!trynaHack)
             {
-                using (var newStream = File.Open(path, FileMode.Create))
-                {
-                    Console.WriteLine("It seems you do not have an account with us!\nPlease make one.");
-                    Console.WriteLine("First, your Account name: ");
-                    mainInstance.accountName = Console.ReadLine();
-                    Console.WriteLine("Now for your pin [4 or more Numbers]: ");
-                    mainInstance.accountPin = Convert.ToInt32(Console.ReadLine());
-                    Console.WriteLine("Just a moment while your account information gets saved...");
-                    mainInstance.hasAccount = true;
-                    var writer = new BinaryWriter(newStream, Encoding.UTF8, false);
-                    writer.Write(mainInstance.accountName);
-                    writer.Write(mainInstance.accountPin);
-                    writer.Write(mainInstance.hasAccount);
-                    writer.Close();
-                    writer.Dispose();
-                    Console.WriteLine("Welcome back!\n\n\nWell, um, that's it. I spent all my time writing the account system. Check back later.\n\n");
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadKey();
-                }
-
-            } else if (File.Exists(path))
-            {
-
-                bool trynaHack = SignIn(0);
-                if (!trynaHack)
-                {
-                    Console.WriteLine("Welcome back!\n\n\nWell, um, that's it. I spent all my time writing the account system. Check back later.\n\n");
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadKey();
-                } else if (trynaHack)
-                {
-
-                    Console.WriteLine("HEY! You're a hacker! >:I Get out of here.");
-                    Console.WriteLine("Press any key to exit");
-                    Console.ReadKey();
-
-                }
-
+                Console.WriteLine("Welcome back!\n\n\nWell, um, that's it. I spent all my time writing the account system. Check back later.\n\n");
+                Console.WriteLine("Press any key to exit.");
+                Console.ReadKey();
             }
- 
+            else if (trynaHack)
+            {
+                Console.WriteLine("HEY! You're a hacker! >:I Get out of here.");
+                Console.WriteLine("Press any key to exit");
+                Console.ReadKey();
+            }
+        }
+
+        Console.WriteLine(accountData);
     }
 
-    public static bool SignIn(int guessCount)
+    private static Account? GetAccountData(string path)
+    {
+        List<Account> accountList = new List<Account>();
+
+        if (File.Exists(path))
+        {
+            string fileContents = File.ReadAllText(path);
+            using (StringReader reader = new StringReader(fileContents))
+            {
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    accountName = reader.ReadLine();
+                    accountPin = Convert.ToInt32(reader.ReadLine());
+
+                    accountList.Add(new Account { AccountName = accountName, AccountPin = accountPin });
+                }
+            }
+
+            return accountList.First();
+        }
+
+        return null;
+    }
+
+    public static bool SignIn(Account account)
     {
         bool areHacker;
+        int attempts = 1;
+
         ConsoleApplication methodInstance = new ConsoleApplication();
-        Console.WriteLine("Welcome back" + methodInstance.accountName + "!");
+        Console.WriteLine("Welcome back" + account.AccountName + "!");
         Console.WriteLine("Please enter your PIN to continue.\nPIN:");
+
         int pinGuess = Convert.ToInt32(Console.ReadLine());
-            if (Convert.ToBoolean(pinGuess = methodInstance.accountPin))
-            {
 
-                
-                areHacker = false;
-                return areHacker;
+        if (pinGuess == account.AccountPin)
+        {
+            areHacker = false;
+            return areHacker;
+        }
 
-            } else
-            {
-                guessCount++;
-                Console.WriteLine("Please Try again.");
-                if (guessCount < 3)
-                {
+        Console.WriteLine("Please Try again.");
 
-                    SignIn(guessCount);
+        if (attempts <= guessCount)
+        {
+            SignIn(account);
+        }
+        else
+        {
+            Console.WriteLine("You have exceeded your maximum guesses! Please try again later.");
+            Console.ReadKey();
 
-                } else
-                {
+            areHacker = true;
+            return areHacker;
+        }
 
-                    Console.WriteLine("You have exceeded your maximum guesses! Please try again later.");
-                    Console.ReadKey();
-                    areHacker = true;
-                    return areHacker;
-
-                }
-                return false;
-            }
-
-
-        
+        return false;
     }
 
+    private static Account GetUserAccountInput()
+    {
+        Account account = new Account();
+
+        using (var newStream = File.Open(path, FileMode.Create))
+        {
+            Console.WriteLine("It seems you do not have an account with us!\nPlease make one.");
+            Console.WriteLine("First, your Account name: ");
+            account.AccountName = Console.ReadLine();
+
+            Console.WriteLine("Now for your pin [4 or more Numbers]: ");
+            account.AccountPin = Convert.ToInt32(Console.ReadLine());
+
+            Console.WriteLine("Just a moment while your account information gets saved...");
+            hasAccount = true;
+
+            using (var writer = new BinaryWriter(newStream, Encoding.UTF8, false))
+            {
+                writer.Write(account.AccountName);
+                writer.Write(account.AccountPin);
+                writer.Write(hasAccount);
+            }
+        }
+
+        return account;
+    }
+}
+
+public class Account
+{
+    public string? AccountName { get; set; }
+
+    public int AccountPin { get; set; }
 }
